@@ -14,7 +14,6 @@ mod atoms {
         h264,
         vp8,
         vp9,
-        av1,
         aac,
         opus,
         mono,
@@ -39,13 +38,9 @@ fn connect(
     stream_key: String,
     use_tls: bool,
 ) -> NifResult<ResourceArc<ClientResource>> {
-    let config = RtmpClientConfig {
-        host,
-        port,
-        app,
-        stream_key,
-        use_tls,
-    };
+    let config = RtmpClientConfig::new(host, app, stream_key)
+        .with_port(port)
+        .with_tls(use_tls);
     RtmpClient::connect(config)
         .map(|client| ResourceArc::new(ClientResource(Mutex::new(Some(client)))))
         .map_err(|e| Error::Term(Box::new(e.to_string())))
@@ -143,8 +138,6 @@ fn parse_video_codec(atom: Atom) -> NifResult<RtmpVideoCodec> {
         Ok(RtmpVideoCodec::Vp8)
     } else if atom == atoms::vp9() {
         Ok(RtmpVideoCodec::Vp9)
-    } else if atom == atoms::av1() {
-        Ok(RtmpVideoCodec::Av1)
     } else {
         Err(Error::BadArg)
     }
