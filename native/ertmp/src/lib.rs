@@ -23,9 +23,9 @@ mod atoms {
 
 pub struct ClientResource(Mutex<Option<RtmpClient>>);
 
+#[allow(non_local_definitions)]
 fn on_load(env: Env, _: Term) -> bool {
-    rustler::resource!(ClientResource, env);
-    true
+    rustler::resource!(ClientResource, env)
 }
 
 rustler::init!("Elixir.Membrane.ERTMP.Native", load = on_load);
