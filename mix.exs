@@ -8,14 +8,15 @@ defmodule Membrane.ERTMP.Mixfile do
     [
       app: :membrane_ertmp_plugin,
       version: @version,
-      elixir: "~> 1.14",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
 
       # hex
-      description: "Membrane plugin for Enhanced RTMP (ERTMP) output via software-mansion/smelter",
+      description:
+        "Membrane plugin for Enhanced RTMP (ERTMP) output via software-mansion/smelter",
       package: package(),
 
       # docs
@@ -42,8 +43,7 @@ defmodule Membrane.ERTMP.Mixfile do
       {:membrane_opus_format, "~> 0.3"},
       {:membrane_file_plugin, "~> 0.17", only: :dev},
       {:membrane_h26x_plugin, "~> 0.10", only: :dev},
-      {:membrane_ogg_plugin, "~> 0.5", only: :dev},
-      {:membrane_opus_plugin, "~> 0.20", only: :dev},
+      {:membrane_aac_plugin, "~> 0.19", only: :dev},
       {:membrane_realtimer_plugin, "~> 0.11", only: :dev},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

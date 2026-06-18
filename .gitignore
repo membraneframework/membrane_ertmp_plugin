@@ -180,3 +180,5 @@ $RECYCLE.BIN/
 
 native/target
 native/membrane_ertmp/target/
+native/membrane_ertmp/.cargo
+

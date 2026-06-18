@@ -138,7 +138,10 @@ defmodule Membrane.ERTMP.Sink do
   @impl true
   def handle_playing(_ctx, state) do
     scheme = if state.use_tls, do: "rtmps", else: "rtmp"
-    Membrane.Logger.info("Connecting to #{scheme}://#{state.host}:#{state.port}/#{state.app}/#{state.stream_key}")
+
+    Membrane.Logger.info(
+      "Connecting to #{scheme}://#{state.host}:#{state.port}/#{state.app}/#{state.stream_key}"
+    )
 
     case Native.connect(state.host, state.port, state.app, state.stream_key, state.use_tls) do
       {:error, reason} ->
@@ -185,12 +188,6 @@ defmodule Membrane.ERTMP.Sink do
     {[], state}
   end
 
-  @impl true
-  def handle_end_of_stream(pad_ref, _ctx, state) do
-    Membrane.Logger.debug("End of stream on #{inspect(pad_ref)}")
-    {[], state}
-  end
-
   # ---------------------------------------------------------------------------
   # Private – track assignment
   # ---------------------------------------------------------------------------
@@ -204,7 +201,6 @@ defmodule Membrane.ERTMP.Sink do
     id = state.next_audio_track_id
     {id, %{state | next_audio_track_id: id + 1}}
   end
-
 
   # ---------------------------------------------------------------------------
   # Private – codec config
