@@ -69,6 +69,8 @@ defmodule Membrane.ERTMP.Sink do
       app: opts.app,
       stream_key: opts.stream_key,
       use_tls: opts.use_tls,
+      next_video_track_id: 0,
+      next_audio_track_id: 0,
       tracks: %{},
       dts_offset: nil
     }

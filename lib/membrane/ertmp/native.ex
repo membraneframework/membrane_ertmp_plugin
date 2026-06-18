@@ -1,7 +1,7 @@
 defmodule Membrane.ERTMP.Native do
   @moduledoc false
 
-  use Rustler, otp_app: :membrane_ertmp_plugin, crate: :membrane_ertmp
+  use Rustler, otp_app: :membrane_ertmp_plugin, crate: :ertmp
 
   @type client() :: reference()
 

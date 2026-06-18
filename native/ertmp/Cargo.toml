@@ -1,10 +1,10 @@
 [package]
-name = "membrane_ertmp"
+name = "ertmp"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "membrane_ertmp"
+name = "ertmp"
 crate-type = ["cdylib"]
 
 [dependencies]
