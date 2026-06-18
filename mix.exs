@@ -41,6 +41,8 @@ defmodule Membrane.ERTMP.Mixfile do
       {:membrane_h264_format, "~> 0.6"},
       {:membrane_aac_format, "~> 0.8"},
       {:membrane_opus_format, "~> 0.3"},
+      {:membrane_vp8_format, "~> 0.5"},
+      {:membrane_vp9_format, "~> 0.5"},
       {:membrane_file_plugin, "~> 0.17", only: [:dev, :test]},
       {:membrane_h26x_plugin, "~> 0.10", only: [:dev, :test]},
       {:membrane_aac_plugin, "~> 0.19", only: [:dev, :test]},

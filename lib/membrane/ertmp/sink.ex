@@ -23,7 +23,7 @@ defmodule Membrane.ERTMP.Sink do
   require Membrane.Logger
   require Membrane.Pad, as: Pad
 
-  alias Membrane.{AAC, H264, Opus}
+  alias Membrane.{AAC, H264, Opus, VP8, VP9}
   alias Membrane.Buffer
   alias Membrane.ERTMP.Native
 
@@ -51,7 +51,7 @@ defmodule Membrane.ERTMP.Sink do
               ]
 
   def_input_pad :video,
-    accepted_format: %H264{alignment: :au},
+    accepted_format: any_of(%H264{alignment: :au}, %VP8{}, %VP9{}),
     availability: :on_request,
     flow_control: :auto
 
@@ -155,6 +155,24 @@ defmodule Membrane.ERTMP.Sink do
     |> put_in([:tracks, pad_ref, :config_sent], true)
   end
 
+  defp send_codec_config(pad_ref, %VP8{}, state) do
+    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+    :ok = Native.send_video_config(state.client, track_id, :vp8, <<>>)
+
+    state
+    |> put_in([:tracks, pad_ref, :codec], :vp8)
+    |> put_in([:tracks, pad_ref, :config_sent], true)
+  end
+
+  defp send_codec_config(pad_ref, %VP9{}, state) do
+    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+    :ok = Native.send_video_config(state.client, track_id, :vp9, <<>>)
+
+    state
+    |> put_in([:tracks, pad_ref, :codec], :vp9)
+    |> put_in([:tracks, pad_ref, :config_sent], true)
+  end
+
   defp send_codec_config(
          pad_ref,
          %AAC{config: {:audio_specific_config, asc}, channels: channels},
@@ -170,10 +188,21 @@ defmodule Membrane.ERTMP.Sink do
     |> put_in([:tracks, pad_ref, :config_sent], true)
   end
 
+  defp send_codec_config(pad_ref, %Opus{channels: channels}, state) do
+    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+    opus_head = build_opus_head(channels)
+    rtmp_channels = map_opus_channels(channels)
+    :ok = Native.send_audio_config(state.client, track_id, :opus, opus_head, rtmp_channels)
+
+    state
+    |> put_in([:tracks, pad_ref, :codec], :opus)
+    |> put_in([:tracks, pad_ref, :config_sent], true)
+  end
+
   defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset) do
     pts_ns = max((buffer.pts || 0) - offset, 0)
     dts_ns = max((buffer.dts || (buffer.pts || 0)) - offset, 0)
-    is_keyframe = h264_keyframe?(buffer)
+    is_keyframe = video_keyframe?(codec, buffer)
     :ok = Native.send_video(client, track_id, codec, pts_ns, dts_ns, buffer.payload, is_keyframe)
   end
 
@@ -182,10 +211,28 @@ defmodule Membrane.ERTMP.Sink do
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
-  defp h264_keyframe?(%Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
-  defp h264_keyframe?(_buffer), do: false
+  defp video_keyframe?(:h264, %Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
+  defp video_keyframe?(:vp8, %Buffer{metadata: %{vp8: %{is_keyframe: true}}}), do: true
+  defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
+  defp video_keyframe?(_, _), do: false
+
+  # RFC 7845 §5.1 — minimal OpusHead binary
+  defp build_opus_head(channels) do
+    <<
+      "OpusHead",
+      1::8,
+      channels::8,
+      312::16-little,
+      48_000::32-little,
+      0::16-little,
+      0::8
+    >>
+  end
 
   defp map_aac_channels(1), do: :mono
   defp map_aac_channels(:mono), do: :mono
   defp map_aac_channels(_channels), do: :stereo
+
+  defp map_opus_channels(1), do: :mono
+  defp map_opus_channels(_), do: :stereo
 end
