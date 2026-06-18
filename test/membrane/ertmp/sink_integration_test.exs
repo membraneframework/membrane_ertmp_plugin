@@ -29,8 +29,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   test "sink streams H264+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
     pipeline = build_file_pipeline(port)
 
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 30_000)
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 30_000)
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
 
     Testing.Pipeline.terminate(pipeline)
   end
