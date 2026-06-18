@@ -1,25 +1,25 @@
-defmodule Membrane.Template.Mixfile do
+defmodule Membrane.ERTMP.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane_template_plugin"
+  @github_url "https://github.com/software-mansion/membrane_ertmp_plugin"
 
   def project do
     [
-      app: :membrane_template_plugin,
+      app: :membrane_ertmp_plugin,
       version: @version,
-      elixir: "~> 1.13",
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
 
       # hex
-      description: "Template Plugin for Membrane Framework",
+      description: "Membrane plugin for Enhanced RTMP (ERTMP) output via software-mansion/smelter",
       package: package(),
 
       # docs
-      name: "Membrane Template plugin",
+      name: "Membrane ERTMP Plugin",
       source_url: @github_url,
       docs: docs(),
       homepage_url: "https://membrane.stream"
@@ -27,9 +27,7 @@ defmodule Membrane.Template.Mixfile do
   end
 
   def application do
-    [
-      extra_applications: []
-    ]
+    [extra_applications: [:logger]]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
@@ -38,19 +36,25 @@ defmodule Membrane.Template.Mixfile do
   defp deps do
     [
       {:membrane_core, "~> 1.0"},
+      {:rustler, "~> 0.34"},
+      {:membrane_h264_format, "~> 0.6"},
+      {:membrane_aac_format, "~> 0.8"},
+      {:membrane_opus_format, "~> 0.3"},
+      {:membrane_file_plugin, "~> 0.17", only: :dev},
+      {:membrane_h26x_plugin, "~> 0.10", only: :dev},
+      {:membrane_ogg_plugin, "~> 0.5", only: :dev},
+      {:membrane_opus_plugin, "~> 0.20", only: :dev},
+      {:membrane_realtimer_plugin, "~> 0.11", only: :dev},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 
-  defp dialyzer() do
-    opts = [
-      flags: [:error_handling]
-    ]
+  defp dialyzer do
+    opts = [flags: [:error_handling]]
 
     if System.get_env("CI") == "true" do
-      # Store PLTs in cacheable directory for CI
       File.mkdir_p!(Path.join([__DIR__, "priv", "plts"]))
       [plt_local_path: "priv/plts", plt_core_path: "priv/plts"] ++ opts
     else
@@ -60,7 +64,7 @@ defmodule Membrane.Template.Mixfile do
 
   defp package do
     [
-      maintainers: ["Membrane Team"],
+      maintainers: ["Software Mansion"],
       licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @github_url,
@@ -75,7 +79,7 @@ defmodule Membrane.Template.Mixfile do
       extras: ["README.md", "LICENSE"],
       formatters: ["html"],
       source_ref: "v#{@version}",
-      nest_modules_by_prefix: [Membrane.Template]
+      nest_modules_by_prefix: [Membrane.ERTMP]
     ]
   end
 end

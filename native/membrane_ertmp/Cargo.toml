@@ -1,0 +1,15 @@
+[package]
+name = "membrane_ertmp"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "membrane_ertmp"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.34"
+# The rtmp crate lives inside the software-mansion/smelter workspace.
+# It requires Rust 1.85+ (edition 2024).
+rtmp = { git = "https://github.com/software-mansion/smelter", package = "rtmp" }
+bytes = "1"
