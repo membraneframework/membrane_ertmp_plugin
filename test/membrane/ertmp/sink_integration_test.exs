@@ -30,7 +30,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   end
 
   test "sink streams H264+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
-    pipeline = build_file_pipeline(port)
+    pipeline =
+      build_pipeline(port, h264_spec(), aac_spec())
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -39,7 +40,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   end
 
   test "sink streams H264+Opus fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
-    pipeline = build_opus_pipeline(port)
+    pipeline =
+      build_pipeline(port, h264_spec(), opus_spec())
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -48,7 +50,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   end
 
   test "sink streams VP8+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
-    pipeline = build_vp8_pipeline(port)
+    pipeline =
+      build_pipeline(port, vp8_spec(), aac_spec())
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -57,7 +60,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   end
 
   test "sink streams VP9+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
-    pipeline = build_vp9_pipeline(port)
+    pipeline =
+      build_pipeline(port, vp9_spec(), aac_spec())
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -89,87 +93,46 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
     _exception -> :ok
   end
 
-  defp build_file_pipeline(port) do
+  defp build_pipeline(port, video_spec, audio_spec) do
     sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
 
     Testing.Pipeline.start_link_supervised!(
       spec: [
-        child(:video_source, %Membrane.File.Source{location: @h264_fixture})
-        |> child(:h264_parser, %Membrane.H264.Parser{
-          output_stream_structure: :avc1,
-          generate_best_effort_timestamps: %{framerate: {25, 1}}
-        })
-        |> via_in(Pad.ref(:video, :main))
-        |> child(:sink, sink),
-        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
-        |> child(:aac_parser, %Membrane.AAC.Parser{
-          out_encapsulation: :none,
-          output_config: :audio_specific_config
-        })
-        |> via_in(Pad.ref(:audio, :main))
-        |> get_child(:sink)
+        video_spec |> via_in(Pad.ref(:video, :main)) |> child(:sink, sink),
+        audio_spec |> via_in(Pad.ref(:audio, :main)) |> get_child(:sink)
       ]
     )
   end
 
-  defp build_opus_pipeline(port) do
-    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
-
-    Testing.Pipeline.start_link_supervised!(
-      spec: [
-        child(:video_source, %Membrane.File.Source{location: @h264_fixture})
-        |> child(:h264_parser, %Membrane.H264.Parser{
-          output_stream_structure: :avc1,
-          generate_best_effort_timestamps: %{framerate: {25, 1}}
-        })
-        |> via_in(Pad.ref(:video, :main))
-        |> child(:sink, sink),
-        child(:opus_source, %Membrane.File.Source{location: @opus_fixture})
-        |> child(:ogg_demuxer, Membrane.Ogg.Demuxer)
-        |> child(:opus_parser, %Membrane.Opus.Parser{generate_best_effort_timestamps?: true})
-        |> via_in(Pad.ref(:audio, :main))
-        |> get_child(:sink)
-      ]
-    )
+  defp h264_spec do
+    child(:video_source, %Membrane.File.Source{location: @h264_fixture})
+    |> child(:h264_parser, %Membrane.H264.Parser{
+      output_stream_structure: :avc1,
+      generate_best_effort_timestamps: %{framerate: {25, 1}}
+    })
   end
 
-  defp build_vp8_pipeline(port) do
-    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
-
-    Testing.Pipeline.start_link_supervised!(
-      spec: [
-        child(:video_source, %Membrane.File.Source{location: @vp8_fixture})
-        |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
-        |> via_in(Pad.ref(:video, :main))
-        |> child(:sink, sink),
-        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
-        |> child(:aac_parser, %Membrane.AAC.Parser{
-          out_encapsulation: :none,
-          output_config: :audio_specific_config
-        })
-        |> via_in(Pad.ref(:audio, :main))
-        |> get_child(:sink)
-      ]
-    )
+  defp vp8_spec do
+    child(:video_source, %Membrane.File.Source{location: @vp8_fixture})
+    |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
   end
 
-  defp build_vp9_pipeline(port) do
-    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
+  defp vp9_spec do
+    child(:video_source, %Membrane.File.Source{location: @vp9_fixture})
+    |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
+  end
 
-    Testing.Pipeline.start_link_supervised!(
-      spec: [
-        child(:video_source, %Membrane.File.Source{location: @vp9_fixture})
-        |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
-        |> via_in(Pad.ref(:video, :main))
-        |> child(:sink, sink),
-        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
-        |> child(:aac_parser, %Membrane.AAC.Parser{
-          out_encapsulation: :none,
-          output_config: :audio_specific_config
-        })
-        |> via_in(Pad.ref(:audio, :main))
-        |> get_child(:sink)
-      ]
-    )
+  defp aac_spec do
+    child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
+    |> child(:aac_parser, %Membrane.AAC.Parser{
+      out_encapsulation: :none,
+      output_config: :audio_specific_config
+    })
+  end
+
+  defp opus_spec do
+    child(:opus_source, %Membrane.File.Source{location: @opus_fixture})
+    |> child(:ogg_demuxer, Membrane.Ogg.Demuxer)
+    |> child(:opus_parser, %Membrane.Opus.Parser{generate_best_effort_timestamps?: true})
   end
 end
