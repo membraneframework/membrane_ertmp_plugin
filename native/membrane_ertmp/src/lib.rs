@@ -31,10 +31,6 @@ fn on_load(env: Env, _: Term) -> bool {
 
 rustler::init!("Elixir.Membrane.ERTMP.Native", load = on_load);
 
-/// Establishes an RTMP connection and returns an opaque client resource.
-///
-/// Runs on the dirty I/O scheduler because it performs the full RTMP
-/// handshake + connect + createStream + publish negotiation synchronously.
 #[rustler::nif(schedule = "DirtyIo")]
 fn connect(
     host: String,
@@ -55,9 +51,6 @@ fn connect(
         .map_err(|e| Error::Term(Box::new(e.to_string())))
 }
 
-/// Sends the video decoder configuration record (e.g. AVCDecoderConfigurationRecord
-/// for H.264) before the first video frame.  Must be called once per track after
-/// the stream format is known.
 #[rustler::nif(schedule = "DirtyIo")]
 fn send_video_config(
     resource: ResourceArc<ClientResource>,
@@ -74,10 +67,6 @@ fn send_video_config(
     with_client(&resource, |c| c.send(event))
 }
 
-/// Sends a single encoded video frame.
-///
-/// `pts_ns` / `dts_ns` are presentation / decode timestamps in nanoseconds.
-/// `data` must be in AVCC format (length-prefixed NALUs) for H.264.
 #[rustler::nif(schedule = "DirtyIo")]
 fn send_video(
     resource: ResourceArc<ClientResource>,
@@ -100,8 +89,6 @@ fn send_video(
     with_client(&resource, |c| c.send(event))
 }
 
-/// Sends the audio decoder configuration (e.g. AudioSpecificConfig for AAC,
-/// OpusHead for Opus).  Must be called once per track before the first audio frame.
 #[rustler::nif(schedule = "DirtyIo")]
 fn send_audio_config(
     resource: ResourceArc<ClientResource>,
@@ -121,10 +108,6 @@ fn send_audio_config(
     with_client(&resource, |c| c.send(event))
 }
 
-/// Sends a single encoded audio frame.
-///
-/// `pts_ns` is the presentation timestamp in nanoseconds.
-/// `data` must be a raw AAC frame (no ADTS header) or a raw Opus packet.
 #[rustler::nif(schedule = "DirtyIo")]
 fn send_audio(
     resource: ResourceArc<ClientResource>,
@@ -142,10 +125,6 @@ fn send_audio(
     };
     with_client(&resource, |c| c.send(event))
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 fn with_client<F>(resource: &ResourceArc<ClientResource>, f: F) -> NifResult<Atom>
 where
