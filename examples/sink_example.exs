@@ -23,7 +23,6 @@ defmodule ERTMP.Example.Pipeline do
         generate_best_effort_timestamps: %{framerate: {25, 1}}
       })
       |> child(Membrane.Realtimer)
-      |> child(%Membrane.Debug.Filter{handle_buffer: &IO.inspect(&1.pts, label: :video)})
       |> via_in(Pad.ref(:video, :main))
       |> child(:sink, %Membrane.ERTMP.Sink{
         host: opts.host,
@@ -38,7 +37,6 @@ defmodule ERTMP.Example.Pipeline do
         output_config: :audio_specific_config
       })
       |> child(Membrane.Realtimer)
-      |> child(%Membrane.Debug.Filter{handle_buffer: &IO.inspect(&1.pts, label: :audio)})
       |> via_in(Pad.ref(:audio, :main))
       |> get_child(:sink)
     ]
