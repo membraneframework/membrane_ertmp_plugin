@@ -6,7 +6,7 @@ defmodule Membrane.ERTMP.Sink do
 
   ## Pads
 
-  Both pads are **dynamic** (`:on_request`) so that the element can later
+  Both :audio and :video pads are **dynamic** (`:on_request`) so that the element can later
   accept multiple video renditions for IVS multitrack once the underlying
   crate gains multitrack support.  For a single-rendition stream connect
   exactly one `:video` pad and one `:audio` pad:
@@ -16,29 +16,6 @@ defmodule Membrane.ERTMP.Sink do
       ...
       |> via_in(Pad.ref(:audio, :main))
       ...
-
-  ## Multitrack future path
-
-  When the smelter `rtmp` crate adds multitrack E-RTMP support, each
-  additional video rendition can be linked as another `:video` dynamic pad.
-  The sink assigns monotonically increasing `TrackId` values to video pads
-  in the order they are added, which maps directly to the E-RTMP multitrack
-  track identifiers.  Audio pads similarly receive their own `TrackId`
-  sequence (currently always 0 for a single audio track).
-
-  ## Video format
-
-  Accepts `%Membrane.H264{alignment: :au}` with AVCC stream structure
-  `{:avc1, dcr}`.  The `dcr` binary (AVCDecoderConfigurationRecord) is sent
-  as the RTMP VideoConfig before the first frame.  Annex-B H.264 is not
-  supported; add `Membrane.H264.Parser` upstream with `output_stream_structure:
-  :avc1` if needed.
-
-  ## Audio format
-
-  Accepts raw AAC frames (`%Membrane.AAC{encapsulation: :none}`) and raw Opus
-  packets (`%Membrane.Opus{}`).  The first `handle_stream_format` call sends
-  the appropriate AudioConfig (AudioSpecificConfig for AAC, OpusHead for Opus).
   """
 
   use Membrane.Sink
@@ -50,67 +27,38 @@ defmodule Membrane.ERTMP.Sink do
   alias Membrane.ERTMP.Native
   alias Membrane.Buffer
 
-  # ---------------------------------------------------------------------------
-  # Options
-  # ---------------------------------------------------------------------------
+  def_options host: [
+                spec: String.t(),
+                description: "RTMP server hostname or IP address"
+              ],
+              port: [
+                spec: 1..65_535,
+                description: "RTMP server port",
+                default: 1935
+              ],
+              app: [
+                spec: String.t(),
+                description: "RTMP application name (e.g. \"live\")"
+              ],
+              stream_key: [
+                spec: String.t(),
+                description: "RTMP stream key or full stream URL path"
+              ],
+              use_tls: [
+                spec: boolean(),
+                description: "Use TLS (RTMPS, port 443 by default)",
+                default: false
+              ]
 
-  def_options(
-    host: [
-      spec: String.t(),
-      description: "RTMP server hostname or IP address"
-    ],
-    port: [
-      spec: 1..65_535,
-      description: "RTMP server port",
-      default: 1935
-    ],
-    app: [
-      spec: String.t(),
-      description: "RTMP application name (e.g. \"live\")"
-    ],
-    stream_key: [
-      spec: String.t(),
-      description: "RTMP stream key or full stream URL path"
-    ],
-    use_tls: [
-      spec: boolean(),
-      description: "Use TLS (RTMPS, port 443 by default)",
-      default: false
-    ]
-  )
-
-  # ---------------------------------------------------------------------------
-  # Pads
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Dynamic input for a single video rendition.
-
-  Accepted format: `%Membrane.H264{alignment: :au}` with AVCC stream structure.
-
-  When multitrack E-RTMP lands each rendition is a separate `:video` pad.
-  The sink assigns `TrackId` values starting from 0 in pad-add order.
-  """
   def_input_pad :video,
     accepted_format: %H264{alignment: :au},
     availability: :on_request,
     flow_control: :auto
 
-  @doc """
-  Dynamic input for audio.
-
-  Accepted formats: `%Membrane.AAC{encapsulation: :none}` or `%Membrane.Opus{}`.
-
-  Typically only one audio pad is connected; the first one receives `TrackId(0)`.
-  """
   def_input_pad :audio,
     accepted_format: any_of(%AAC{encapsulation: :none}, %Opus{}),
     availability: :on_request,
     flow_control: :auto
-
-  # ---------------------------------------------------------------------------
-  # Callbacks
-  # ---------------------------------------------------------------------------
 
   @impl true
   def handle_init(_ctx, opts) do
@@ -121,14 +69,9 @@ defmodule Membrane.ERTMP.Sink do
       app: opts.app,
       stream_key: opts.stream_key,
       use_tls: opts.use_tls,
-      # track_id counters are per media type so video and audio are numbered
-      # independently, matching the E-RTMP multitrack spec.
       next_video_track_id: 0,
       next_audio_track_id: 0,
-      # %{pad_ref => %{track_id: non_neg_integer(), codec: atom() | nil, config_sent: boolean()}}
       tracks: %{},
-      # Set on the first buffer to normalize timestamps to a non-negative origin.
-      # RTMP requires uint timestamps; H264 with B-frames can produce negative DTS.
       dts_offset: nil
     }
 
@@ -188,10 +131,6 @@ defmodule Membrane.ERTMP.Sink do
     {[], state}
   end
 
-  # ---------------------------------------------------------------------------
-  # Private – track assignment
-  # ---------------------------------------------------------------------------
-
   defp assign_track_id(Pad.ref(:video, _), state) do
     id = state.next_video_track_id
     {id, %{state | next_video_track_id: id + 1}}
@@ -201,10 +140,6 @@ defmodule Membrane.ERTMP.Sink do
     id = state.next_audio_track_id
     {id, %{state | next_audio_track_id: id + 1}}
   end
-
-  # ---------------------------------------------------------------------------
-  # Private – codec config
-  # ---------------------------------------------------------------------------
 
   defp send_codec_config(
          pad_ref,
@@ -218,18 +153,6 @@ defmodule Membrane.ERTMP.Sink do
     state
     |> put_in([:tracks, pad_ref, :codec], :h264)
     |> put_in([:tracks, pad_ref, :config_sent], true)
-  end
-
-  defp send_codec_config(
-         _pad_ref,
-         %H264{stream_structure: stream_structure},
-         _state
-       ) do
-    raise """
-    Membrane.ERTMP.Sink received H264 with stream_structure #{inspect(stream_structure)}.
-    Only {:avc1, dcr} (AVCC) is supported. Add Membrane.H264.Parser upstream with
-    output_stream_structure: :avc1 to convert from Annex B.
-    """
   end
 
   defp send_codec_config(
@@ -247,27 +170,6 @@ defmodule Membrane.ERTMP.Sink do
     |> put_in([:tracks, pad_ref, :config_sent], true)
   end
 
-  defp send_codec_config(pad_ref, %AAC{}, _state) do
-    raise "Membrane.ERTMP.Sink: AAC stream format on #{inspect(pad_ref)} has no audio_specific_config. Add Membrane.AAC.Parser upstream."
-  end
-
-  defp send_codec_config(pad_ref, %Opus{channels: channels}, state) do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
-    # Build a minimal OpusHead (https://wiki.xiph.org/OggOpus#ID_Header)
-    # The RTMP crate uses this binary as the AudioConfig data for Opus.
-    opus_head = build_opus_head(channels)
-    rtmp_channels = if channels <= 1, do: :mono, else: :stereo
-    :ok = Native.send_audio_config(state.client, track_id, :opus, opus_head, rtmp_channels)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :opus)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Private – media sending
-  # ---------------------------------------------------------------------------
-
   defp send_media(Pad.ref(:video, _), track_id, codec, buffer, client, offset) do
     pts_ns = max((buffer.pts || 0) - offset, 0)
     dts_ns = max((buffer.dts || (buffer.pts || 0)) - offset, 0)
@@ -280,31 +182,10 @@ defmodule Membrane.ERTMP.Sink do
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
-  # ---------------------------------------------------------------------------
-  # Private – utilities
-  # ---------------------------------------------------------------------------
-
   defp h264_keyframe?(%Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
   defp h264_keyframe?(_), do: false
 
   defp map_aac_channels(1), do: :mono
   defp map_aac_channels(:mono), do: :mono
   defp map_aac_channels(_), do: :stereo
-
-  # Opus ID header as defined in RFC 7845 / OggOpus spec.
-  # Version 1, channel count, pre-skip 312 (standard), sample rate 48000.
-  defp build_opus_head(channels) do
-    channel_count = channels || 2
-    # magic, version, channels, pre-skip (LE u16), input_sample_rate (LE u32),
-    # output_gain (LE i16), channel_mapping_family
-    <<
-      "OpusHead",
-      1::8,
-      channel_count::8,
-      312::little-16,
-      48_000::little-32,
-      0::little-16,
-      0::8
-    >>
-  end
 end
