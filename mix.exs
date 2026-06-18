@@ -2,7 +2,7 @@ defmodule Membrane.ERTMP.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/software-mansion/membrane_ertmp_plugin"
+  @github_url "https://github.com/membraneframework/membrane_ertmp_plugin"
 
   def project do
     [
