@@ -7,8 +7,9 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   alias Membrane.ERTMP.Sink
   alias Membrane.Testing
 
-  @video_fixture "test/fixtures/input.h264"
-  @audio_fixture "test/fixtures/input.aac"
+  @h264_fixture "test/fixtures/input.h264"
+  @aac_fixture "test/fixtures/input.aac"
+  @opus_fixture "test/fixtures/input.ogg"
 
   @moduletag :integration
 
@@ -28,6 +29,15 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
 
   test "sink streams H264+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
     pipeline = build_file_pipeline(port)
+
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
+
+    Testing.Pipeline.terminate(pipeline)
+  end
+
+  test "sink streams H264+Opus fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
+    pipeline = build_opus_pipeline(port)
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -64,18 +74,39 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
 
     Testing.Pipeline.start_link_supervised!(
       spec: [
-        child(:video_source, %Membrane.File.Source{location: @video_fixture})
+        child(:video_source, %Membrane.File.Source{location: @h264_fixture})
         |> child(:h264_parser, %Membrane.H264.Parser{
           output_stream_structure: :avc1,
           generate_best_effort_timestamps: %{framerate: {25, 1}}
         })
         |> via_in(Pad.ref(:video, :main))
         |> child(:sink, sink),
-        child(:audio_source, %Membrane.File.Source{location: @audio_fixture})
+        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
         |> child(:aac_parser, %Membrane.AAC.Parser{
           out_encapsulation: :none,
           output_config: :audio_specific_config
         })
+        |> via_in(Pad.ref(:audio, :main))
+        |> get_child(:sink)
+      ]
+    )
+  end
+
+  defp build_opus_pipeline(port) do
+    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
+
+    Testing.Pipeline.start_link_supervised!(
+      spec: [
+        child(:video_source, %Membrane.File.Source{location: @h264_fixture})
+        |> child(:h264_parser, %Membrane.H264.Parser{
+          output_stream_structure: :avc1,
+          generate_best_effort_timestamps: %{framerate: {25, 1}}
+        })
+        |> via_in(Pad.ref(:video, :main))
+        |> child(:sink, sink),
+        child(:opus_source, %Membrane.File.Source{location: @opus_fixture})
+        |> child(:ogg_demuxer, Membrane.Ogg.Demuxer)
+        |> child(:opus_parser, %Membrane.Opus.Parser{generate_best_effort_timestamps?: true})
         |> via_in(Pad.ref(:audio, :main))
         |> get_child(:sink)
       ]
