@@ -214,7 +214,7 @@ defmodule Membrane.ERTMP.Sink do
   defp video_keyframe?(:h264, %Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
   defp video_keyframe?(:vp8, %Buffer{metadata: %{vp8: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
-  defp video_keyframe?(_, _), do: false
+  defp video_keyframe?(_codec, _buffer), do: false
 
   # RFC 7845 §5.1 — minimal OpusHead binary
   defp build_opus_head(channels) do
@@ -234,5 +234,5 @@ defmodule Membrane.ERTMP.Sink do
   defp map_aac_channels(_channels), do: :stereo
 
   defp map_opus_channels(1), do: :mono
-  defp map_opus_channels(_), do: :stereo
+  defp map_opus_channels(_channels), do: :stereo
 end
