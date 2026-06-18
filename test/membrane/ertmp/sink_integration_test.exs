@@ -4,8 +4,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   import Membrane.ChildrenSpec
   import Membrane.Testing.Assertions
   require Membrane.Pad, as: Pad
-  alias Membrane.Testing
   alias Membrane.ERTMP.Sink
+  alias Membrane.Testing
 
   @video_fixture "test/fixtures/input.h264"
   @audio_fixture "test/fixtures/input.aac"
@@ -56,7 +56,7 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
       Port.close(port_ref)
     end
   rescue
-    _ -> :ok
+    _exception -> :ok
   end
 
   defp build_file_pipeline(port) do

@@ -24,8 +24,8 @@ defmodule Membrane.ERTMP.Sink do
   require Membrane.Pad, as: Pad
 
   alias Membrane.{AAC, H264, Opus}
-  alias Membrane.ERTMP.Native
   alias Membrane.Buffer
+  alias Membrane.ERTMP.Native
 
   def_options host: [
                 spec: String.t(),
@@ -69,8 +69,6 @@ defmodule Membrane.ERTMP.Sink do
       app: opts.app,
       stream_key: opts.stream_key,
       use_tls: opts.use_tls,
-      next_video_track_id: 0,
-      next_audio_track_id: 0,
       tracks: %{},
       dts_offset: nil
     }
@@ -122,21 +120,21 @@ defmodule Membrane.ERTMP.Sink do
         state
       end
 
-    if not config_sent do
-      Membrane.Logger.warning("Dropping buffer on #{inspect(pad_ref)}: codec config not yet sent")
-    else
+    if config_sent do
       send_media(pad_ref, track_id, codec, buffer, state.client, state.dts_offset)
+    else
+      Membrane.Logger.warning("Dropping buffer on #{inspect(pad_ref)}: codec config not yet sent")
     end
 
     {[], state}
   end
 
-  defp assign_track_id(Pad.ref(:video, _), state) do
+  defp assign_track_id(Pad.ref(:video, _id), state) do
     id = state.next_video_track_id
     {id, %{state | next_video_track_id: id + 1}}
   end
 
-  defp assign_track_id(Pad.ref(:audio, _), state) do
+  defp assign_track_id(Pad.ref(:audio, _id), state) do
     id = state.next_audio_track_id
     {id, %{state | next_audio_track_id: id + 1}}
   end
@@ -170,22 +168,22 @@ defmodule Membrane.ERTMP.Sink do
     |> put_in([:tracks, pad_ref, :config_sent], true)
   end
 
-  defp send_media(Pad.ref(:video, _), track_id, codec, buffer, client, offset) do
+  defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset) do
     pts_ns = max((buffer.pts || 0) - offset, 0)
     dts_ns = max((buffer.dts || (buffer.pts || 0)) - offset, 0)
     is_keyframe = h264_keyframe?(buffer)
     :ok = Native.send_video(client, track_id, codec, pts_ns, dts_ns, buffer.payload, is_keyframe)
   end
 
-  defp send_media(Pad.ref(:audio, _), track_id, codec, buffer, client, offset) do
+  defp send_media(Pad.ref(:audio, _id), track_id, codec, buffer, client, offset) do
     pts_ns = max((buffer.pts || 0) - offset, 0)
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
   defp h264_keyframe?(%Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
-  defp h264_keyframe?(_), do: false
+  defp h264_keyframe?(_buffer), do: false
 
   defp map_aac_channels(1), do: :mono
   defp map_aac_channels(:mono), do: :mono
-  defp map_aac_channels(_), do: :stereo
+  defp map_aac_channels(_channels), do: :stereo
 end
