@@ -10,6 +10,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   @h264_fixture "test/fixtures/input.h264"
   @aac_fixture "test/fixtures/input.aac"
   @opus_fixture "test/fixtures/input.ogg"
+  @vp8_fixture "test/fixtures/input_vp8.ivf"
+  @vp9_fixture "test/fixtures/input_vp9.ivf"
 
   @moduletag :integration
 
@@ -38,6 +40,24 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
 
   test "sink streams H264+Opus fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
     pipeline = build_opus_pipeline(port)
+
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
+
+    Testing.Pipeline.terminate(pipeline)
+  end
+
+  test "sink streams VP8+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
+    pipeline = build_vp8_pipeline(port)
+
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
+    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
+
+    Testing.Pipeline.terminate(pipeline)
+  end
+
+  test "sink streams VP9+AAC fixture files to ffmpeg via RTMP", %{rtmp_port: port} do
+    pipeline = build_vp9_pipeline(port)
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -107,6 +127,46 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
         child(:opus_source, %Membrane.File.Source{location: @opus_fixture})
         |> child(:ogg_demuxer, Membrane.Ogg.Demuxer)
         |> child(:opus_parser, %Membrane.Opus.Parser{generate_best_effort_timestamps?: true})
+        |> via_in(Pad.ref(:audio, :main))
+        |> get_child(:sink)
+      ]
+    )
+  end
+
+  defp build_vp8_pipeline(port) do
+    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
+
+    Testing.Pipeline.start_link_supervised!(
+      spec: [
+        child(:video_source, %Membrane.File.Source{location: @vp8_fixture})
+        |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
+        |> via_in(Pad.ref(:video, :main))
+        |> child(:sink, sink),
+        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
+        |> child(:aac_parser, %Membrane.AAC.Parser{
+          out_encapsulation: :none,
+          output_config: :audio_specific_config
+        })
+        |> via_in(Pad.ref(:audio, :main))
+        |> get_child(:sink)
+      ]
+    )
+  end
+
+  defp build_vp9_pipeline(port) do
+    sink = %Sink{host: "127.0.0.1", port: port, app: "live", stream_key: "test"}
+
+    Testing.Pipeline.start_link_supervised!(
+      spec: [
+        child(:video_source, %Membrane.File.Source{location: @vp9_fixture})
+        |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
+        |> via_in(Pad.ref(:video, :main))
+        |> child(:sink, sink),
+        child(:audio_source, %Membrane.File.Source{location: @aac_fixture})
+        |> child(:aac_parser, %Membrane.AAC.Parser{
+          out_encapsulation: :none,
+          output_config: :audio_specific_config
+        })
         |> via_in(Pad.ref(:audio, :main))
         |> get_child(:sink)
       ]

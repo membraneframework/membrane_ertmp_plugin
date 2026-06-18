@@ -48,6 +48,7 @@ defmodule Membrane.ERTMP.Mixfile do
       {:membrane_aac_plugin, "~> 0.19", only: [:dev, :test]},
       {:membrane_ogg_plugin, "~> 0.5.1", only: [:dev, :test]},
       {:membrane_opus_plugin, "~> 0.20.7", only: [:dev, :test]},
+      {:membrane_ivf_plugin, "~> 0.9.0", only: [:dev, :test]},
       {:membrane_realtimer_plugin, "~> 0.11", only: :dev},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
