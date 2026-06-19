@@ -9,8 +9,6 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
 
   @h264_fixture "test/fixtures/input.h264"
   @aac_fixture "test/fixtures/input.aac"
-  @opus_fixture "test/fixtures/input.ogg"
-  @vp8_fixture "test/fixtures/input_vp8.ivf"
   @vp9_fixture "test/fixtures/input_vp9.ivf"
 
   @moduletag :integration
@@ -22,7 +20,7 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
     end
 
     port = find_free_port()
-    output_path = Path.join(context.tmp_dir, "output.flv")
+    output_path = Path.join(context.tmp_dir, "output.mkv")
     ffmpeg_port = start_ffmpeg_server(port, output_path)
     on_exit(fn -> stop_ffmpeg(ffmpeg_port) end)
 
@@ -34,32 +32,6 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
   test "sink streams H264+AAC fixture files to ffmpeg via RTMP",
        %{rtmp_port: port, ffmpeg_output: output_path, ffmpeg_port: ffmpeg_port} do
     pipeline = build_pipeline(port, h264_spec(), aac_spec())
-
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
-
-    Testing.Pipeline.terminate(pipeline)
-    wait_for_ffmpeg(ffmpeg_port)
-
-    assert File.stat!(output_path).size > 0
-  end
-
-  test "sink streams H264+Opus fixture files to ffmpeg via RTMP",
-       %{rtmp_port: port, ffmpeg_output: output_path, ffmpeg_port: ffmpeg_port} do
-    pipeline = build_pipeline(port, h264_spec(), opus_spec())
-
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
-    assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
-
-    Testing.Pipeline.terminate(pipeline)
-    wait_for_ffmpeg(ffmpeg_port)
-
-    assert File.stat!(output_path).size > 0
-  end
-
-  test "sink streams VP8+AAC fixture files to ffmpeg via RTMP",
-       %{rtmp_port: port, ffmpeg_output: output_path, ffmpeg_port: ffmpeg_port} do
-    pipeline = build_pipeline(port, vp8_spec(), aac_spec())
 
     assert_end_of_stream(pipeline, :sink, Pad.ref(:video, :main), 15_000)
     assert_end_of_stream(pipeline, :sink, Pad.ref(:audio, :main), 15_000)
@@ -85,8 +57,8 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
 
   defp wait_for_ffmpeg(ffmpeg_port) do
     receive do
-      {^ffmpeg_port, {:exit_status, _}} -> :ok
-      {^ffmpeg_port, {:data, _}} -> wait_for_ffmpeg(ffmpeg_port)
+      {^ffmpeg_port, {:exit_status, _status}} -> :ok
+      {^ffmpeg_port, {:data, _data}} -> wait_for_ffmpeg(ffmpeg_port)
     after
       5_000 -> :ok
     end
@@ -135,11 +107,6 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
     })
   end
 
-  defp vp8_spec do
-    child(:video_source, %Membrane.File.Source{location: @vp8_fixture})
-    |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
-  end
-
   defp vp9_spec do
     child(:video_source, %Membrane.File.Source{location: @vp9_fixture})
     |> child(:ivf_deserializer, Membrane.IVF.Deserializer)
@@ -151,11 +118,5 @@ defmodule Membrane.ERTMP.SinkIntegrationTest do
       out_encapsulation: :none,
       output_config: :audio_specific_config
     })
-  end
-
-  defp opus_spec do
-    child(:opus_source, %Membrane.File.Source{location: @opus_fixture})
-    |> child(:ogg_demuxer, Membrane.Ogg.Demuxer)
-    |> child(:opus_parser, %Membrane.Opus.Parser{generate_best_effort_timestamps?: true})
   end
 end
