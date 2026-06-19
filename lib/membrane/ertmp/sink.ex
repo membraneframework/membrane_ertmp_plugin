@@ -211,7 +211,7 @@ defmodule Membrane.ERTMP.Sink do
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
-  defp video_keyframe?(:h264, %Buffer{metadata: %{h264: %{key_frame: true}}}), do: true
+  defp video_keyframe?(:h264, %Buffer{metadata: %{h264: %{key_frame?: true}}}), do: true
   defp video_keyframe?(:vp8, %Buffer{metadata: %{vp8: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(_codec, _buffer), do: false
