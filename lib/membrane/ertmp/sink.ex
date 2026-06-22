@@ -128,8 +128,10 @@ defmodule Membrane.ERTMP.Sink do
     } =
       Map.fetch!(state.tracks, pad_ref)
 
-    state = put_in(state.tracks[pad_ref].offset_pts, offset_pts || buffer.pts || buffer.dts)
-    state = put_in(state.tracks[pad_ref].offset_dts, offset_dts || buffer.dts || buffer.pts)
+    offset_pts = offset_pts || buffer.pts || buffer.dts
+    offset_dts = offset_dts || buffer.dts || buffer.pts
+    state = put_in(state.tracks[pad_ref].offset_pts, offset_pts)
+    state = put_in(state.tracks[pad_ref].offset_dts, offset_dts)
 
     if config_sent do
       send_media(
@@ -138,8 +140,8 @@ defmodule Membrane.ERTMP.Sink do
         codec,
         buffer,
         state.client,
-        state.stateoffset_pts,
-        state.offset_dts
+        offset_pts,
+        offset_dts
       )
     else
       Membrane.Logger.warning("Dropping buffer on #{inspect(pad_ref)}: codec config not yet sent")
