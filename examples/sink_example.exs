@@ -1,5 +1,4 @@
-# Streams test/fixtures/input.h264 (H.264 Annex B) and test/fixtures/input.aac
-# (ADTS-encapsulated AAC) to an RTMP server using Membrane.ERTMP.Sink.
+# Streams test/fixtures/input.mp4 to an RTMP server using Membrane.ERTMP.Sink.
 #
 # Usage:
 #   mix run examples/sink_example.exs [rtmp://host:port/app/key]
@@ -14,7 +13,7 @@ defmodule ERTMP.Example.Pipeline do
 
   require Membrane.Pad, as: Pad
 
-  @input_path "test/fixtures/input_long.mp4"
+  @input_path "test/fixtures/input.mp4"
 
   @impl true
   def handle_init(_ctx, opts) do
