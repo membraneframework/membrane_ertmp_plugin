@@ -207,6 +207,7 @@ defmodule Membrane.ERTMP.Sink do
 
   defp send_codec_config(pad_ref, %Opus{channels: channels}, state) do
     %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+    # OpusHead plays a similar role to the audio specific config for AAC
     opus_head = build_opus_head(channels)
     rtmp_channels = map_opus_channels(channels)
     :ok = Native.send_audio_config(state.client, track_id, :opus, opus_head, rtmp_channels)
@@ -235,12 +236,19 @@ defmodule Membrane.ERTMP.Sink do
 
   defp build_opus_head(channels) do
     <<
+      # Magic signature
       "OpusHead",
+      # Version (always 1)
       1::8,
+      # Channel count
       channels::8,
+      # Pre-skip delay
       312::16-little,
+      # Original sample rate (before encoding) - we can safely set it to Opus native 48kHz as we don't have that information available
       48_000::32-little,
+      # Output gain (0 = no gain)
       0::16-little,
+      # Mapping family (0 = mono/stereo)
       0::8
     >>
   end
