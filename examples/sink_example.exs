@@ -14,17 +14,15 @@ defmodule ERTMP.Example.Pipeline do
 
   require Membrane.Pad, as: Pad
 
-  @video_path "test/fixtures/input.h264"
-  @audio_path "test/fixtures/input.aac"
+  @input_path "test/fixtures/input_long.mp4"
 
   @impl true
   def handle_init(_ctx, opts) do
     spec = [
-      child(:video_source, %Membrane.File.Source{location: @video_path})
-      |> child(:h264_parser, %Membrane.H264.Parser{
-        output_stream_structure: :avc1,
-        generate_best_effort_timestamps: %{framerate: {25, 1}}
-      })
+      child(:video_source, %Membrane.File.Source{location: @input_path})
+      |> child(:demuxer, Membrane.MP4.Demuxer.ISOM)
+      |> via_out(:output, options: [kind: :video])
+      |> child(:parser_video, %Membrane.H264.Parser{output_stream_structure: :avc1, output_alignment: :au})
       |> child(Membrane.Realtimer)
       |> via_in(Pad.ref(:video, :main))
       |> child(:sink, %Membrane.ERTMP.Sink{
@@ -34,7 +32,11 @@ defmodule ERTMP.Example.Pipeline do
         stream_key: opts.stream_key,
         use_tls: opts.use_tls
       }),
-      child(:audio_source, %Membrane.File.Source{location: @audio_path})
+      get_child(:demuxer)
+      |> via_out(:output, options: [kind: :audio])
+      |> child(:audio_parser, %Membrane.AAC.Parser{
+        out_encapsulation: :ADTS
+      })
       |> child(:aac_parser, %Membrane.AAC.Parser{
         out_encapsulation: :none,
         output_config: :audio_specific_config

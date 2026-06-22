@@ -71,8 +71,7 @@ defmodule Membrane.ERTMP.Sink do
       use_tls: opts.use_tls,
       next_video_track_id: 0,
       next_audio_track_id: 0,
-      tracks: %{},
-      dts_offset: nil
+      tracks: %{}
     }
 
     {[], state}
@@ -99,7 +98,16 @@ defmodule Membrane.ERTMP.Sink do
   @impl true
   def handle_pad_added(pad_ref, _ctx, state) do
     {track_id, state} = assign_track_id(pad_ref, state)
-    tracks = Map.put(state.tracks, pad_ref, %{track_id: track_id, codec: nil, config_sent: false})
+
+    tracks =
+      Map.put(state.tracks, pad_ref, %{
+        track_id: track_id,
+        codec: nil,
+        config_sent: false,
+        offset_pts: nil,
+        offset_dts: nil
+      })
+
     {[], %{state | tracks: tracks}}
   end
 
@@ -111,19 +119,28 @@ defmodule Membrane.ERTMP.Sink do
 
   @impl true
   def handle_buffer(pad_ref, %Buffer{} = buffer, _ctx, state) do
-    %{track_id: track_id, codec: codec, config_sent: config_sent} =
+    %{
+      track_id: track_id,
+      codec: codec,
+      config_sent: config_sent,
+      offset_pts: offset_pts,
+      offset_dts: offset_dts
+    } =
       Map.fetch!(state.tracks, pad_ref)
 
-    state =
-      if state.dts_offset == nil do
-        dts = buffer.dts || buffer.pts || 0
-        %{state | dts_offset: dts}
-      else
-        state
-      end
+    state = put_in(state.tracks[pad_ref].offset_pts, offset_pts || buffer.pts || buffer.dts)
+    state = put_in(state.tracks[pad_ref].offset_dts, offset_dts || buffer.dts || buffer.pts)
 
     if config_sent do
-      send_media(pad_ref, track_id, codec, buffer, state.client, state.dts_offset)
+      send_media(
+        pad_ref,
+        track_id,
+        codec,
+        buffer,
+        state.client,
+        state.stateoffset_pts,
+        state.offset_dts
+      )
     else
       Membrane.Logger.warning("Dropping buffer on #{inspect(pad_ref)}: codec config not yet sent")
     end
@@ -199,15 +216,15 @@ defmodule Membrane.ERTMP.Sink do
     |> put_in([:tracks, pad_ref, :config_sent], true)
   end
 
-  defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset) do
-    pts_ns = max((buffer.pts || 0) - offset, 0)
-    dts_ns = max((buffer.dts || (buffer.pts || 0)) - offset, 0)
+  defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset_pts, offset_dts) do
+    pts_ns = Membrane.Time.as_nanoseconds((buffer.pts || buffer.dts) - offset_pts, :round)
+    dts_ns = Membrane.Time.as_nanoseconds((buffer.dts || buffer.pts) - offset_dts, :round)
     is_keyframe = video_keyframe?(codec, buffer)
     :ok = Native.send_video(client, track_id, codec, pts_ns, dts_ns, buffer.payload, is_keyframe)
   end
 
-  defp send_media(Pad.ref(:audio, _id), track_id, codec, buffer, client, offset) do
-    pts_ns = max((buffer.pts || 0) - offset, 0)
+  defp send_media(Pad.ref(:audio, _id), track_id, codec, buffer, client, offset_pts, _offset_dts) do
+    pts_ns = Membrane.Time.as_nanoseconds((buffer.pts || buffer.dts) - offset_pts, :round)
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
@@ -216,7 +233,6 @@ defmodule Membrane.ERTMP.Sink do
   defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(_codec, _buffer), do: false
 
-  # RFC 7845 §5.1 — minimal OpusHead binary
   defp build_opus_head(channels) do
     <<
       "OpusHead",
