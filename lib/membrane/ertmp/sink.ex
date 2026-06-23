@@ -51,7 +51,7 @@ defmodule Membrane.ERTMP.Sink do
               ]
 
   def_input_pad :video,
-    accepted_format: any_of(%H264{alignment: :au}, %VP8{}, %VP9{}),
+    accepted_format: any_of(%H264{alignment: :au, stream_strucutre: {avc, _dcr} when avc in [:avc1, :avc3], %VP8{}, %VP9{}),
     availability: :on_request,
     flow_control: :auto
 
