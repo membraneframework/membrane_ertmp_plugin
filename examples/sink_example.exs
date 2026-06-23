@@ -45,13 +45,13 @@ defmodule ERTMP.Example.Pipeline do
       |> get_child(:sink)
     ]
 
-    {[spec: spec], %{pending_eos: 2}}
+    {[spec: spec], %{pending_eos: [Pad.ref(:audio, :main), Pad.ref(:video, :main)]}}
   end
 
   @impl true
-  def handle_element_end_of_stream(:sink, _pad, _context, state) do
-    state = update_in(state.pending_eos, & &1-1)
-    actions = if state.pending_eos == 0, do: [terminate: :normal], else: []
+  def handle_element_end_of_stream(:sink, pad, _context, state) do
+    state = update_in(state.pending_eos, & &1 -- [pad])
+    actions = if state.pending_eos == [], do: [terminate: :normal], else: []
     {actions, state}
   end
 
