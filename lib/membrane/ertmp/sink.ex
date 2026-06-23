@@ -51,7 +51,12 @@ defmodule Membrane.ERTMP.Sink do
               ]
 
   def_input_pad :video,
-    accepted_format: any_of(%H264{alignment: :au, stream_strucutre: {avc, _dcr} when avc in [:avc1, :avc3], %VP8{}, %VP9{}),
+    accepted_format:
+      any_of(
+        %H264{alignment: :au, stream_structure: {avc, _dcr}} when avc in [:avc1, :avc3],
+        %VP8{},
+        %VP9{}
+      ),
     availability: :on_request,
     flow_control: :auto
 
@@ -103,7 +108,6 @@ defmodule Membrane.ERTMP.Sink do
       Map.put(state.tracks, pad_ref, %{
         track_id: track_id,
         codec: nil,
-        config_sent: false,
         offset_pts: nil,
         offset_dts: nil
       })
@@ -122,7 +126,6 @@ defmodule Membrane.ERTMP.Sink do
     %{
       track_id: track_id,
       codec: codec,
-      config_sent: config_sent,
       offset_pts: offset_pts,
       offset_dts: offset_dts
     } =
@@ -133,19 +136,15 @@ defmodule Membrane.ERTMP.Sink do
     state = put_in(state.tracks[pad_ref].offset_pts, offset_pts)
     state = put_in(state.tracks[pad_ref].offset_dts, offset_dts)
 
-    if config_sent do
-      send_media(
-        pad_ref,
-        track_id,
-        codec,
-        buffer,
-        state.client,
-        offset_pts,
-        offset_dts
-      )
-    else
-      Membrane.Logger.warning("Dropping buffer on #{inspect(pad_ref)}: codec config not yet sent")
-    end
+    send_media(
+      pad_ref,
+      track_id,
+      codec,
+      buffer,
+      state.client,
+      offset_pts,
+      offset_dts
+    )
 
     {[], state}
   end
@@ -160,63 +159,50 @@ defmodule Membrane.ERTMP.Sink do
     {id, %{state | next_audio_track_id: id + 1}}
   end
 
-  defp send_codec_config(
-         pad_ref,
+  defp send_codec_config(pad_ref, stream_format, state) do
+    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+
+    codec_name = do_send_codec_config(track_id, stream_format, state)
+
+    put_in(state, [:tracks, pad_ref, :codec], codec_name)
+  end
+
+  defp do_send_codec_config(
+         track_id,
          %H264{stream_structure: {avcc, dcr}},
          state
        )
        when avcc in [:avc1, :avc3] do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
     :ok = Native.send_video_config(state.client, track_id, :h264, dcr)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :h264)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
+    :h264
   end
 
-  defp send_codec_config(pad_ref, %VP8{}, state) do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+  defp do_send_codec_config(track_id, %VP8{}, state) do
     :ok = Native.send_video_config(state.client, track_id, :vp8, <<>>)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :vp8)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
+    :vp8
   end
 
-  defp send_codec_config(pad_ref, %VP9{}, state) do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
+  defp do_send_codec_config(track_id, %VP9{}, state) do
     :ok = Native.send_video_config(state.client, track_id, :vp9, <<>>)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :vp9)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
+    :vp9
   end
 
-  defp send_codec_config(
-         pad_ref,
+  defp do_send_codec_config(
+         track_id,
          %AAC{config: {:audio_specific_config, asc}, channels: channels},
          state
        )
        when is_binary(asc) do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
     rtmp_channels = map_aac_channels(channels)
     :ok = Native.send_audio_config(state.client, track_id, :aac, asc, rtmp_channels)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :aac)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
+    :aac
   end
 
-  defp send_codec_config(pad_ref, %Opus{channels: channels}, state) do
-    %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
-    # OpusHead plays a similar role to the audio specific config for AAC
+  defp do_send_codec_config(track_id, %Opus{channels: channels}, state) do
     opus_head = build_opus_head(channels)
     rtmp_channels = map_opus_channels(channels)
     :ok = Native.send_audio_config(state.client, track_id, :opus, opus_head, rtmp_channels)
-
-    state
-    |> put_in([:tracks, pad_ref, :codec], :opus)
-    |> put_in([:tracks, pad_ref, :config_sent], true)
+    :opus
   end
 
   defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset_pts, offset_dts) do
@@ -236,6 +222,7 @@ defmodule Membrane.ERTMP.Sink do
   defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(_codec, _buffer), do: false
 
+  # OpusHead plays a similar role to the audio specific config for AAC
   defp build_opus_head(channels) do
     <<
       # Magic signature
