@@ -27,6 +27,40 @@ defmodule Membrane.ERTMP.Sink do
   alias Membrane.Buffer
   alias Membrane.ERTMP.Native
 
+  defmodule State do
+    @moduledoc false
+
+    @type codec :: :h264 | :vp8 | :vp9 | :aac | :opus
+
+    @type track :: %{
+            track_id: non_neg_integer(),
+            codec: codec() | nil,
+            offset_pts: Membrane.Time.t() | nil,
+            offset_dts: Membrane.Time.t() | nil
+          }
+
+    @type t :: %__MODULE__{
+            client: Native.client() | nil,
+            host: String.t(),
+            port: 1..65_535,
+            app: String.t(),
+            stream_key: String.t(),
+            use_tls: boolean(),
+            next_video_track_id: non_neg_integer(),
+            next_audio_track_id: non_neg_integer(),
+            tracks: %{Pad.ref() => track()}
+          }
+
+    @enforce_keys [:host, :port, :app, :stream_key, :use_tls]
+    defstruct @enforce_keys ++
+                [
+                  client: nil,
+                  next_video_track_id: 0,
+                  next_audio_track_id: 0,
+                  tracks: %{}
+                ]
+  end
+
   def_options host: [
                 spec: String.t(),
                 description: "RTMP server hostname or IP address"
@@ -67,16 +101,12 @@ defmodule Membrane.ERTMP.Sink do
 
   @impl true
   def handle_init(_ctx, opts) do
-    state = %{
-      client: nil,
+    state = %State{
       host: opts.host,
       port: opts.port,
       app: opts.app,
       stream_key: opts.stream_key,
-      use_tls: opts.use_tls,
-      next_video_track_id: 0,
-      next_audio_track_id: 0,
-      tracks: %{}
+      use_tls: opts.use_tls
     }
 
     {[], state}
@@ -149,6 +179,7 @@ defmodule Membrane.ERTMP.Sink do
     {[], state}
   end
 
+  @spec assign_track_id(Pad.ref(), State.t()) :: {non_neg_integer(), State.t()}
   defp assign_track_id(Pad.ref(:video, _id), state) do
     id = state.next_video_track_id
     {id, %{state | next_video_track_id: id + 1}}
@@ -159,14 +190,17 @@ defmodule Membrane.ERTMP.Sink do
     {id, %{state | next_audio_track_id: id + 1}}
   end
 
+  @spec send_codec_config(Pad.ref(), Membrane.StreamFormat.t(), State.t()) :: State.t()
   defp send_codec_config(pad_ref, stream_format, state) do
     %{track_id: track_id} = Map.fetch!(state.tracks, pad_ref)
 
     codec_name = do_send_codec_config(track_id, stream_format, state)
 
-    put_in(state, [:tracks, pad_ref, :codec], codec_name)
+    %{state | tracks: put_in(state.tracks, [pad_ref, :codec], codec_name)}
   end
 
+  @spec do_send_codec_config(non_neg_integer(), Membrane.StreamFormat.t(), State.t()) ::
+          State.codec()
   defp do_send_codec_config(
          track_id,
          %H264{stream_structure: {avcc, dcr}},
@@ -205,6 +239,15 @@ defmodule Membrane.ERTMP.Sink do
     :opus
   end
 
+  @spec send_media(
+          Pad.ref(),
+          non_neg_integer(),
+          State.codec(),
+          Buffer.t(),
+          Native.client(),
+          Membrane.Time.t(),
+          Membrane.Time.t()
+        ) :: :ok
   defp send_media(Pad.ref(:video, _id), track_id, codec, buffer, client, offset_pts, offset_dts) do
     pts_ns = Membrane.Time.as_nanoseconds((buffer.pts || buffer.dts) - offset_pts, :round)
     dts_ns = Membrane.Time.as_nanoseconds((buffer.dts || buffer.pts) - offset_dts, :round)
@@ -217,12 +260,14 @@ defmodule Membrane.ERTMP.Sink do
     :ok = Native.send_audio(client, track_id, codec, pts_ns, buffer.payload)
   end
 
+  @spec video_keyframe?(State.codec(), Buffer.t()) :: boolean()
   defp video_keyframe?(:h264, %Buffer{metadata: %{h264: %{key_frame?: true}}}), do: true
   defp video_keyframe?(:vp8, %Buffer{metadata: %{vp8: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(:vp9, %Buffer{metadata: %{vp9: %{is_keyframe: true}}}), do: true
   defp video_keyframe?(_codec, _buffer), do: false
 
   # OpusHead plays a similar role to the audio specific config for AAC
+  @spec build_opus_head(non_neg_integer()) :: binary()
   defp build_opus_head(channels) do
     <<
       # Magic signature
@@ -242,10 +287,12 @@ defmodule Membrane.ERTMP.Sink do
     >>
   end
 
+  @spec map_aac_channels(non_neg_integer() | :mono | :stereo) :: :mono | :stereo
   defp map_aac_channels(1), do: :mono
   defp map_aac_channels(:mono), do: :mono
   defp map_aac_channels(_channels), do: :stereo
 
+  @spec map_opus_channels(non_neg_integer()) :: :mono | :stereo
   defp map_opus_channels(1), do: :mono
   defp map_opus_channels(_channels), do: :stereo
 end
