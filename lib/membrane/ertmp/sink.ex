@@ -227,14 +227,14 @@ defmodule Membrane.ERTMP.Sink do
          state
        )
        when is_binary(asc) do
-    rtmp_channels = map_aac_channels(channels)
+    rtmp_channels = map_channels(channels)
     :ok = Native.send_audio_config(state.client, track_id, :aac, asc, rtmp_channels)
     :aac
   end
 
   defp do_send_codec_config(track_id, %Opus{channels: channels}, state) do
     opus_head = build_opus_head(channels)
-    rtmp_channels = map_opus_channels(channels)
+    rtmp_channels = map_channels(channels)
     :ok = Native.send_audio_config(state.client, track_id, :opus, opus_head, rtmp_channels)
     :opus
   end
@@ -287,12 +287,7 @@ defmodule Membrane.ERTMP.Sink do
     >>
   end
 
-  @spec map_aac_channels(non_neg_integer() | :mono | :stereo) :: :mono | :stereo
-  defp map_aac_channels(1), do: :mono
-  defp map_aac_channels(:mono), do: :mono
-  defp map_aac_channels(_channels), do: :stereo
-
-  @spec map_opus_channels(non_neg_integer()) :: :mono | :stereo
-  defp map_opus_channels(1), do: :mono
-  defp map_opus_channels(_channels), do: :stereo
+  @spec map_channels(non_neg_integer()) :: :mono | :stereo
+  defp map_channels(1), do: :mono
+  defp map_channels(_channels), do: :stereo
 end
