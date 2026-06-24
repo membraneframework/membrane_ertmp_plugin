@@ -6,7 +6,7 @@
 # The RTMP URL defaults to rtmp://localhost:1935/live/test.
 #
 # You can run an RTMP server localy using FFmpeg:
-# ffmpeg -listen 1 -i rtmp://localhost:1935/live/test -c copy output.flv -y
+# ffmpeg -listen 1 -i rtmp://localhost:1935/live/test -c copy output.flv
 
 defmodule ERTMP.Example.Pipeline do
   use Membrane.Pipeline
