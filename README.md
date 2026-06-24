@@ -1,12 +1,10 @@
-# Membrane Template Plugin
+# Membrane ERTMP Plugin
 
 [![Hex.pm](https://img.shields.io/hexpm/v/membrane_ertmp_plugin.svg)](https://hex.pm/packages/membrane_ertmp_plugin)
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_ertmp_plugin)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_ertmp_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_ertmp_plugin)
 
-This repository contains a template for new plugins.
-
-Check out different branches for other flavors of this template.
+Membrane plugin for Enhanced RTMP (ERTMP) output, built on top of the RTMP package of [software-mansion/smelter](https://github.com/software-mansion/smelter).
 
 It's a part of the [Membrane Framework](https://membrane.stream).
 
