@@ -289,5 +289,8 @@ defmodule Membrane.ERTMP.Sink do
 
   @spec map_channels(non_neg_integer()) :: :mono | :stereo
   defp map_channels(1), do: :mono
-  defp map_channels(_channels), do: :stereo
+  defp map_channels(2), do: :stereo
+  defp map_channels(channels) do
+    raise "Unsupported number of channels: #{channels}. Only 1 (:mono) or 2 (:stereo) channels are supported."
+  end
 end
