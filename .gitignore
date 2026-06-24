@@ -179,7 +179,7 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/c,vim,linux,macos,elixir,windows,visualstudiocode
 
 native/target
-native/membrane_ertmp/target/
-native/membrane_ertmp/.cargo
+native/ertmp/target/
+native/ertmp/.cargo
 target/
 
