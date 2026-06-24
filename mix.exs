@@ -75,7 +75,15 @@ defmodule Membrane.ERTMP.Mixfile do
       links: %{
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membrane.stream"
-      }
+      },
+      files: [
+        "lib",
+        "native",
+        "mix.exs",
+        "README*",
+        "LICENSE*",
+        ".formatter.exs"
+      ]
     ]
   end
 
