@@ -9,5 +9,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.34"
-rtmp = { git = "https://github.com/software-mansion/smelter", package = "rtmp", rev = "4460d7753a9903deb8087748cc71f9a0f6be9599" }
+rtmp = { git = "https://github.com/software-mansion/smelter", package = "rtmp", rev = "7ee30a179a9deb0180a851bae0e5519de8f7db07" }
 bytes = "1"

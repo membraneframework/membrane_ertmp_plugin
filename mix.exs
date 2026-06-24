@@ -79,6 +79,8 @@ defmodule Membrane.ERTMP.Mixfile do
       files: [
         "lib",
         "native",
+        "Cargo.toml",
+        "Cargo.lock",
         "mix.exs",
         "README*",
         "LICENSE*",
