@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_ertmp_plugin` to your list of d
 ```elixir
 def deps do
   [
-    {:membrane_ertmp_plugin, "~> 0.1.0"}
+    {:membrane_ertmp_plugin, "~> 0.1.1"}
   ]
 end
 ```
