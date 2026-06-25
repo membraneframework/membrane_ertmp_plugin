@@ -1,7 +1,7 @@
 defmodule Membrane.ERTMP.Mixfile do
   use Mix.Project
 
-  @version "0.1.1"
+  @version "0.1.2"
   @github_url "https://github.com/membraneframework/membrane_ertmp_plugin"
 
   def project do
@@ -23,7 +23,8 @@ defmodule Membrane.ERTMP.Mixfile do
       name: "Membrane ERTMP Plugin",
       source_url: @github_url,
       docs: docs(),
-      homepage_url: "https://membrane.stream"
+      homepage_url: "https://membrane.stream",
+      aliases: [docs: ["docs", &prepend_llms_links/1]]
     ]
   end
 
@@ -51,7 +52,7 @@ defmodule Membrane.ERTMP.Mixfile do
       {:membrane_ivf_plugin, "~> 0.9.0", only: [:dev, :test]},
       {:membrane_mp4_plugin, "~> 0.36.9", only: [:dev, :test]},
       {:membrane_realtimer_plugin, "~> 0.11", only: :dev},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
@@ -93,9 +94,30 @@ defmodule Membrane.ERTMP.Mixfile do
     [
       main: "readme",
       extras: ["README.md", "LICENSE"],
-      formatters: ["html"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [Membrane.ERTMP]
     ]
+  end
+
+  defp prepend_llms_links(_) do
+    output_dir = docs()[:output] || "doc"
+    path = Path.join(output_dir, "llms.txt")
+
+    if File.exists?(path) do
+      existing = File.read!(path)
+
+      footer = """
+
+
+      ## See Also
+
+      - [Membrane Framework AI Skill](https://hexdocs.pm/membrane_core/skill.md)
+      - [Membrane Core](https://hexdocs.pm/membrane_core/llms.txt)
+      """
+
+      File.write!(path, String.trim_trailing(existing) <> footer)
+    else
+      IO.warn("#{path} not found — llms.txt was not generated, check your ex_doc configuration")
+    end
   end
 end
