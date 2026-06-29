@@ -52,7 +52,7 @@ defmodule Membrane.ERTMP.Mixfile do
       {:membrane_ivf_plugin, "~> 0.9.0", only: [:dev, :test]},
       {:membrane_mp4_plugin, "~> 0.36.9", only: [:dev, :test]},
       {:membrane_realtimer_plugin, "~> 0.11", only: :dev},
-      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.40.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
