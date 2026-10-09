@@ -1,8 +1,9 @@
 # Membrane ERTMP Plugin
 
+[![Star Membrane on GitHub ★](https://img.shields.io/github/stars/membraneframework/membrane_core?style=flat&logo=github&label=Star%20Membrane%20on%20GitHub%20%E2%98%85&color=blue)](https://github.com/membraneframework/membrane_core)
 [![Hex.pm](https://img.shields.io/hexpm/v/membrane_ertmp_plugin.svg)](https://hex.pm/packages/membrane_ertmp_plugin)
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_ertmp_plugin)
-[![CircleCI](https://circleci.com/gh/membraneframework/membrane_ertmp_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_ertmp_plugin)
+[![CI](https://github.com/membraneframework/membrane_ertmp_plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/membraneframework/membrane_ertmp_plugin/actions/workflows/ci.yml)
 
 Membrane plugin for Enhanced RTMP (ERTMP) output, built on top of the RTMP package of [software-mansion/smelter](https://github.com/software-mansion/smelter).
 
